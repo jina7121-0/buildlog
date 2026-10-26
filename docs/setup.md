@@ -52,16 +52,15 @@ React 프로젝트는 Vite의 React TypeScript 구성을 사용합니다. 설치
 
 | 항목 | 기준 버전 또는 방식 |
 | --- | --- |
-| 공통 데이터 접근 | SQLAlchemy 2.1.6 |
+| SQLite3 데이터 접근 | SQLAlchemy 2.1.6 |
 | 데이터 구조 변경 관리 | Alembic 1.20.1 |
-| Supabase PostgreSQL 연결 | psycopg 3.3.6 |
 | 개발·테스트 연결 | Python 내장 SQLite3 |
 
-- 로컬 개발과 자동 테스트에서는 SQLite3를 사용합니다.
-- 실제 운영에서는 Supabase가 제공하는 PostgreSQL 데이터베이스 연결 문자열을 FastAPI 백엔드에서 사용합니다.
-- React가 Supabase 데이터베이스에 직접 연결하지 않습니다.
-- SQLAlchemy 모델과 Alembic 변경 이력을 두 데이터베이스에 공통으로 적용합니다.
-- SQLite3와 PostgreSQL의 동작이 다른 기능은 사용하지 않거나 두 환경에서 따로 확인합니다.
+- 현재 MVP는 프로젝트 내부 SQLite3만 사용합니다.
+- 실제 데이터 파일은 `database/buildlog.sqlite3`에 저장합니다.
+- 자동 테스트는 실제 데이터와 분리된 임시 SQLite3에서 실행합니다.
+- SQLAlchemy 모델과 Alembic으로 데이터 구조 변경을 관리합니다.
+- Supabase 연결은 관련 수업을 진행한 뒤 별도로 검토합니다.
 
 ### 인증과 보안
 
@@ -74,7 +73,6 @@ React 프로젝트는 Vite의 React TypeScript 구성을 사용합니다. 설치
 | 프론트엔드 저장소 | 인증 토큰을 localStorage에 저장하지 않음 |
 
 - 회원가입과 로그인은 FastAPI에서 처리합니다.
-- Supabase Auth는 사용하지 않고 Supabase는 데이터베이스 용도로 사용합니다.
 - 허용한 React 주소에서 오는 요청만 인증 쿠키를 포함할 수 있게 합니다.
 - 비밀번호, 비밀키, 데이터베이스 연결 문자열을 로그에 남기지 않습니다.
 
@@ -96,13 +94,13 @@ Phase 1에서 다음 항목을 비밀값 없이 `.env.example`에 작성합니�
 | --- | --- | --- |
 | `APP_ENV` | 실행 환경 구분 | `development` |
 | `APP_SECRET_KEY` | 인증 정보 서명 | 실제 값은 `.env`에만 입력 |
-| `DATABASE_URL` | SQLite3 또는 Supabase 연결 | SQLite3 개발 주소 |
+| `DATABASE_URL` | 프로젝트 내부 SQLite3 연결 | `sqlite+pysqlite:///../database/buildlog.sqlite3` |
 | `FRONTEND_ORIGIN` | FastAPI가 허용할 React 주소 | `http://127.0.0.1:5173` |
 | `APP_TIMEZONE` | 사용자 기준 시간대 | `Asia/Seoul` |
 | `COOKIE_SECURE` | HTTPS에서만 쿠키 전송 여부 | 로컬은 `false`, 운영은 `true` |
 | `VITE_API_BASE_URL` | React가 호출할 FastAPI 주소 | `http://127.0.0.1:8000` |
 
-`.env.example`에는 실제 비밀키, Supabase 비밀번호, 실제 운영 연결 문자열을 넣지 않습니다.
+`.env.example`에는 실제 비밀키나 비밀번호를 넣지 않습니다.
 
 ## 6. 날짜와 시간 처리
 
@@ -153,23 +151,23 @@ npm.cmd run build
 
 프론트엔드 자동 테스트 명령은 Phase 1에서 테스트 도구를 확정한 뒤 추가합니다.
 
-## 8. Supabase 연결 시 사용자 작업
+## 8. SQLite3 준비
 
-Supabase 연결은 지금 필요하지 않습니다. Phase 13 전에 사용자가 다음 작업을 진행합니다.
+Phase 2에서 다음 명령으로 프로젝트 내부 데이터베이스를 준비했습니다.
 
-1. Supabase 프로젝트를 만듭니다.
-2. Supabase 대시보드의 `Connect`에서 실행 환경에 맞는 데이터베이스 연결 문자열을 확인합니다.
-3. 데이터베이스 비밀번호를 포함한 연결 문자열을 로컬 `.env`의 `DATABASE_URL`에 직접 입력합니다.
-4. 비밀값을 채팅, 문서, 화면 캡처, Git 기록에 포함하지 않습니다.
+```powershell
+Push-Location backend
+.\.venv\Scripts\python.exe -m alembic -c alembic.ini upgrade head
+```
 
-배포 환경이 장시간 실행되는 서버인지 서버리스 환경인지에 따라 Supabase의 직접 연결, 세션 풀러, 트랜잭션 풀러 중 알맞은 방식을 그때 선택합니다.
+SQLite3 실제 파일은 Git에 저장하지 않습니다. 새 환경에서는 위 명령으로 빈 데이터베이스에 같은 구조를 다시 만들 수 있습니다.
 
 ## 9. Phase 0 완료 결과
 
 - [x] TypeScript를 사용하기로 확정했습니다.
 - [x] FastAPI와 React의 기준 버전을 확인했습니다.
 - [x] Python, Node.js, npm, SQLite3 실행 환경을 확인했습니다.
-- [x] SQLAlchemy와 Alembic으로 SQLite3·Supabase 공통 구조를 관리하기로 했습니다.
+- [x] SQLAlchemy와 Alembic으로 프로젝트 내부 SQLite3 구조를 관리하기로 했습니다.
 - [x] FastAPI와 React의 로컬 주소를 정했습니다.
 - [x] 인증 토큰과 쿠키의 기본 방식을 정했습니다.
 - [x] 환경 변수 이름을 정했습니다.
@@ -177,14 +175,23 @@ Supabase 연결은 지금 필요하지 않습니다. Phase 13 전에 사용자�
 - [x] 코드와 패키지를 변경하지 않았습니다.
 - [x] 데이터베이스와 Git 저장소를 만들지 않았습니다.
 
-다음 단계는 Phase 1인 FastAPI·React 프로젝트 뼈대 만들기입니다.
+Phase 0 완료 후 확정한 기준으로 Phase 1부터 Phase 3까지 진행했습니다.
 
-## 10. 확인에 사용한 공식 자료
+## 10. 현재 진행 상태
+
+- Phase 0: 개발 기준 확정 완료
+- Phase 1: FastAPI·React 실행 뼈대 완료
+- Phase 2: 프로젝트 내부 SQLite3와 사용자 구조 완료
+- Phase 3: 회원가입, 자동 로그인, 로그인, 닉네임 변경 완료
+- 다음 작업: Phase 4 공부 기록·할 일·오류 기록 데이터 구조
+
+현재 SQLite3 마이그레이션은 `20261026_0001`이며 `users` 테이블을 만듭니다. 자동 테스트는 실제 `database/buildlog.sqlite3`와 분리된 임시 SQLite3를 사용합니다.
+
+## 11. 확인에 사용한 공식 자료
 
 - [Python 공식 다운로드와 지원 상태](https://www.python.org/downloads/)
 - [FastAPI 공식 릴리스 노트](https://fastapi.tiangolo.com/release-notes/)
 - [React 공식 버전 안내](https://react.dev/versions)
 - [Vite 공식 안내](https://vite.dev/guide/)
 - [SQLAlchemy 2.1 공식 문서](https://docs.sqlalchemy.org/en/21/)
-- [Supabase 데이터베이스 연결 안내](https://supabase.com/docs/guides/database/connecting-to-postgres)
 - [FastAPI JWT 보안 안내](https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/)
